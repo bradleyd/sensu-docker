@@ -18,7 +18,7 @@ RUN useradd pair
 RUN echo "pair" | passwd pair --stdin
 RUN sed -ri 's/UsePAM yes/#UsePAM yes/g' /etc/ssh/sshd_config
 RUN sed -ri 's/#UsePAM no/UsePAM no/g' /etc/ssh/sshd_config
-RUN echo "pair ALL=(ALL) ALL" >> /etc/sudoers.d/hiroakis
+RUN echo "pair ALL=(ALL) ALL" >> /etc/sudoers.d/pair
 
 # Redis
 RUN yum install -y redis
@@ -27,23 +27,26 @@ RUN yum install -y redis
 RUN yum install -y erlang
 RUN rpm --import http://www.rabbitmq.com/rabbitmq-signing-key-public.asc
 RUN rpm -Uvh http://www.rabbitmq.com/releases/rabbitmq-server/v3.1.4/rabbitmq-server-3.1.4-1.noarch.rpm
-## Fetch certs for user
-RUN git clone git://github.com/joemiller/joemiller.me-intro-to-sensu.git
-RUN cd joemiller.me-intro-to-sensu/; ./ssl_certs.sh clean && ./ssl_certs.sh generate
+
+## Fetch server certs
 RUN mkdir /etc/rabbitmq/ssl
-RUN cp /joemiller.me-intro-to-sensu/server_cert.pem /etc/rabbitmq/ssl/cert.pem
-RUN cp /joemiller.me-intro-to-sensu/server_key.pem /etc/rabbitmq/ssl/key.pem
-RUN cp /joemiller.me-intro-to-sensu/testca/cacert.pem /etc/rabbitmq/ssl/
+ADD http://localhost:3000/server_cert/cert /etc/rabbitmq/ssl/cert.pem
+ADD http://localhost:3000/server_cert/key /etc/rabbitmq/ssl/key.pem
+ADD http://localhost:3000/server_cert/cacert /etc/rabbitmq/ssl/cacert.pem
 ADD http://localhost:4567/rabbit_config /etc/rabbitmq/rabbitmq.config
+RUN chown -R rabbitmq:rabbitmq /etc/rabbitmq/ssl
+RUN chown rabbitmq:rabbitmq /etc/rabbitmq/rabbitmq.config
 RUN rabbitmq-plugins enable rabbitmq_management
 
 # Sensu server
 ADD http://localhost:4567/sensu_repo /etc/yum.repos.d/sensu.repo
 RUN yum install -y sensu
 ADD http://localhost:4567/sensu_config_json /etc/sensu/config.json
+RUN chown -R sensu:sensu /etc/sensu/config.json
 RUN mkdir -p /etc/sensu/ssl
-RUN cp /joemiller.me-intro-to-sensu/client_cert.pem /etc/sensu/ssl/cert.pem
-RUN cp /joemiller.me-intro-to-sensu/client_key.pem /etc/sensu/ssl/key.pem
+ADD http://localhost:3000/client_cert/cert /etc/sensu/ssl/cert.pem
+ADD http://localhost:3000/client_cert/key /etc/sensu/ssl/key.pem
+RUN chown -R sensu:sensu /etc/sensu/ssl/
 
 # uchiwa
 RUN yum install -y uchiwa
